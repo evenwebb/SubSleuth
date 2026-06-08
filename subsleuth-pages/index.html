@@ -201,6 +201,132 @@
       margin: 0;
     }
 
+    .welcome-hero {
+      position: relative;
+      overflow: hidden;
+      padding: 24px;
+      border-radius: 18px;
+      background:
+        radial-gradient(circle at top right, rgba(232, 122, 65, 0.22), transparent 28%),
+        radial-gradient(circle at bottom left, rgba(64, 123, 255, 0.12), transparent 24%),
+        linear-gradient(145deg, #1b1f2a, #243248 62%, #1f6b66 130%);
+      color: #f7f8fb;
+      display: grid;
+      gap: 18px;
+      box-shadow: 0 20px 40px rgba(20, 28, 44, 0.18);
+    }
+
+    .welcome-hero::after {
+      content: "";
+      position: absolute;
+      right: -70px;
+      top: -60px;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.12);
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    .welcome-kicker {
+      position: relative;
+      z-index: 1;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.14);
+      color: rgba(255,255,255,0.9);
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .welcome-hero h3 {
+      position: relative;
+      z-index: 1;
+      margin: 0;
+      max-width: 11ch;
+      font-size: clamp(2rem, 5vw, 3.3rem);
+      line-height: 0.94;
+      letter-spacing: -0.05em;
+    }
+
+    .welcome-copy {
+      position: relative;
+      z-index: 1;
+      max-width: 56ch;
+      margin: 0;
+      color: rgba(247, 248, 251, 0.82);
+      font-size: 0.98rem;
+      line-height: 1.7;
+    }
+
+    .welcome-metrics {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .welcome-metric {
+      padding: 14px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(8px);
+    }
+
+    .welcome-metric strong {
+      display: block;
+      margin-bottom: 4px;
+      color: white;
+      font-size: 0.92rem;
+    }
+
+    .welcome-metric span {
+      color: rgba(247, 248, 251, 0.72);
+      font-size: 0.84rem;
+      line-height: 1.5;
+    }
+
+    .welcome-grid {
+      display: grid;
+      grid-template-columns: 1.25fr 0.95fr;
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .welcome-card {
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: linear-gradient(180deg, #ffffff, #fafbfc);
+    }
+
+    .welcome-card h4 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .welcome-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .welcome-card .instructions {
+      margin-top: 10px;
+    }
+
     /* Instruction lists */
     .instructions {
       list-style: none;
@@ -917,6 +1043,7 @@
       .step-name { display: none; }
       .step-menu-item.is-active .step-name { display: inline; }
       .step-menu-bar { height: 30px; }
+      .welcome-grid, .welcome-metrics,
       .field-grid, .choice-grid, .highlight-grid { grid-template-columns: 1fr; }
       .summary-row { gap: 4px; }
       .stat-card { padding: 8px 4px; gap: 3px; }
@@ -976,42 +1103,63 @@
       <div class="card-body">
         <!-- Step 1: Welcome -->
         <section class="step-panel is-visible" id="panelWelcome">
-          <div class="callout callout-privacy">
-            <strong>Private by design</strong>
-            Your Takeout export is read locally in this tab — watch history and subscriptions are not uploaded anywhere.
-            Channel logos are fetched separately from image CDNs using only the channel ID or handle.
+          <div class="welcome-hero">
+            <div class="welcome-kicker">Welcome to SubSleuth</div>
+            <h3>Find the channels you never meant to lose.</h3>
+            <p class="welcome-copy">SubSleuth turns a dry YouTube Takeout export into a clean shortlist of channels you still watch but are no longer subscribed to. It is designed to feel more like a polished audit studio than a file import form.</p>
+            <div class="welcome-metrics">
+              <div class="welcome-metric">
+                <strong>Private first</strong>
+                <span>Your watch history and subscriptions stay in this browser tab.</span>
+              </div>
+              <div class="welcome-metric">
+                <strong>Fast flow</strong>
+                <span>Export, upload, tune the shortlist, and review the final reveal.</span>
+              </div>
+              <div class="welcome-metric">
+                <strong>Signal over noise</strong>
+                <span>Recency, repeat watching, and unique videos shape the ranking.</span>
+              </div>
+            </div>
           </div>
 
-          <p class="step-lead">SubSleuth matches your watch history to your subscriptions and lists channels you still watch but aren't subscribed to.</p>
+          <div class="welcome-grid">
+            <div class="welcome-card">
+              <h4>What happens next</h4>
+              <p>The next screen shows the exact Google Takeout setup. After that, you will upload your export, choose how strict the shortlist should be, and land on a styled final review.</p>
+              <ol class="instructions">
+                <li>
+                  <span class="instr-num">1</span>
+                  <div class="instr-body">
+                    <strong>Export from Google Takeout</strong>
+                    <span>We will walk you through the exact settings on the next step.</span>
+                  </div>
+                </li>
+                <li>
+                  <span class="instr-num">2</span>
+                  <div class="instr-body">
+                    <strong>Upload your zip</strong>
+                    <span>Or bring the raw history and subscription files directly.</span>
+                  </div>
+                </li>
+                <li>
+                  <span class="instr-num">3</span>
+                  <div class="instr-body">
+                    <strong>Review your shortlist</strong>
+                    <span>Pick a preset and inspect the strongest forgotten channels.</span>
+                  </div>
+                </li>
+              </ol>
+            </div>
 
-          <ol class="instructions">
-            <li>
-              <span class="instr-num">1</span>
-              <div class="instr-body">
-                <strong>Export from Google Takeout</strong>
-                <span>Step-by-step guide on the next screen.</span>
+            <div class="welcome-card">
+              <h4>Before you start</h4>
+              <p>A full Takeout zip with both watch history and subscriptions gives the cleanest results. Channel logos may still load from image CDNs using only the channel ID or handle, never your watch history.</p>
+              <div class="callout callout-privacy">
+                <strong>Private by design</strong>
+                Your export is read locally in this tab and is not uploaded to any backend.
               </div>
-            </li>
-            <li>
-              <span class="instr-num">2</span>
-              <div class="instr-body">
-                <strong>Upload your zip</strong>
-                <span>Or upload the raw files if you prefer.</span>
-              </div>
-            </li>
-            <li>
-              <span class="instr-num">3</span>
-              <div class="instr-body">
-                <strong>Run the check</strong>
-                <span>Pick a preset, then see your list.</span>
-              </div>
-            </li>
-          </ol>
-
-          <div class="callout callout-info">
-            <strong>Browser vs CLI</strong>
-            This web app is the default way to use SubSleuth — wizard, sorting, filters, and exports with no install.
-            The Python CLI in the repo is for power users: batch CSV/HTML to disk, <code>--compare-to</code> for older exports, and automation.
+            </div>
           </div>
 
           <div class="nav-row">
