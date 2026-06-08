@@ -9,5 +9,6 @@
   "inactive_csv": "subsleuth-inactive-subs.csv",
   "comparison_csv": "subsleuth-comparison.csv",
   "html_report": "subsleuth-report.html",
-  "recent_month_windows": [3, 6, 12]
+  "recent_month_windows": [3, 6, 12],
+  "no_avatars": false
 }

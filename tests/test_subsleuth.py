@@ -9,12 +9,18 @@ from subsleuth import (
     build_channel_ref,
     build_explanation,
     compare_analyses,
+    discover_files,
+    duplicate_entry_key,
     format_table,
     load_config,
+    main,
     normalize_url,
     parse_watch_history_html,
     prepare_takeout_source,
     rewatch_ratio,
+    safe_extract_zip,
+    select_watch_files,
+    subtract_calendar_months,
     write_channel_csv,
     write_html_report,
 )
@@ -182,7 +188,7 @@ def test_compare_mode_finds_channels_that_dropped(tmp_path: Path) -> None:
     current = analyze_takeout(current_dir, now=datetime(2026, 6, 4, tzinfo=UTC), min_videos=1)
     comparison = compare_analyses(current, older, limit=10)
     assert comparison[0].channel_name == "Channel A"
-    assert comparison[0].watch_drop == 1
+    assert comparison[0].watch_change == -1
 
 
 def test_alias_matching_handles_legacy_user_urls(tmp_path: Path) -> None:
@@ -359,6 +365,36 @@ GND,https://www.youtube.com/channel/GND,Ghost Sub
     assert "no watches in last 6 months" in ghost.explanation
 
 
+def test_rewatch_counts_repeat_views_of_same_video(tmp_path: Path) -> None:
+    history_dir = tmp_path / "history"
+    history_dir.mkdir(parents=True)
+    (history_dir / "watch-history.json").write_text(
+        """
+[
+  {
+    "title": "Same Video",
+    "titleUrl": "https://www.youtube.com/watch?v=repeat12345",
+    "time": "2026-04-02T12:00:00Z",
+    "subtitles": [{"name": "Channel A", "url": "https://www.youtube.com/channel/AAA"}]
+  },
+  {
+    "title": "Same Video",
+    "titleUrl": "https://www.youtube.com/watch?v=repeat12345",
+    "time": "2026-05-02T12:00:00Z",
+    "subtitles": [{"name": "Channel A", "url": "https://www.youtube.com/channel/AAA"}]
+  }
+]
+""".strip(),
+        encoding="utf-8",
+    )
+
+    analysis = analyze_takeout(tmp_path, now=datetime(2026, 6, 4, tzinfo=UTC), min_videos=1)
+    channel = analysis.overall_channels[0]
+    assert channel.watch_count == 2
+    assert channel.unique_video_count == 1
+    assert "rewatch ratio 2.0" in channel.explanation
+
+
 def test_analyze_takeout_includes_rewatch_ratio_in_explanation(tmp_path: Path) -> None:
     analysis = analyze_takeout(_seed_takeout(tmp_path), now=datetime(2026, 6, 4, tzinfo=UTC), min_videos=1)
     channel_a = analysis.unsubscribed_channels[0]
@@ -372,6 +408,241 @@ def test_format_table_includes_dates_and_explanations(tmp_path: Path) -> None:
     output = format_table(analysis.unsubscribed_channels, limit=1)
     assert "Last Watched" in output
     assert "last watched 2026-05-02" in output
+
+
+def test_select_watch_files_prefers_json_over_html(tmp_path: Path) -> None:
+    root = tmp_path / "Takeout"
+    history = root / "history"
+    history.mkdir(parents=True)
+    (history / "watch-history.json").write_text("[]", encoding="utf-8")
+    (history / "watch-history.html").write_text("<html></html>", encoding="utf-8")
+
+    candidates = [path for path in root.rglob("*") if path.is_file()]
+    watch_files, ignored = select_watch_files(candidates)
+
+    assert [path.name for path in watch_files] == ["watch-history.json"]
+    assert "watch-history.html" in ignored
+
+
+def test_discover_files_flags_subscription_format_conflict(tmp_path: Path) -> None:
+    root = tmp_path / "Takeout"
+    history = root / "history"
+    subs = root / "subscriptions"
+    history.mkdir(parents=True)
+    subs.mkdir(parents=True)
+    (history / "watch-history.json").write_text("[]", encoding="utf-8")
+    (subs / "subscriptions.csv").write_text("Channel Id,Channel Url,Channel Title\n", encoding="utf-8")
+    (subs / "subscriptions.json").write_text("{}", encoding="utf-8")
+
+    watch_files, subscription_files, meta = discover_files(root)
+
+    assert len(watch_files) == 1
+    assert len(subscription_files) == 1
+    assert subscription_files[0].name == "subscriptions.csv"
+    assert meta["subscription_format_conflict"] is True
+
+
+def test_safe_extract_zip_rejects_path_traversal(tmp_path: Path) -> None:
+    zip_path = tmp_path / "evil.zip"
+    with zipfile.ZipFile(zip_path, "w") as archive:
+        archive.writestr("../escape.txt", "nope")
+
+    extract_root = tmp_path / "extracted"
+    extract_root.mkdir()
+    with zipfile.ZipFile(zip_path) as archive:
+        try:
+            safe_extract_zip(archive, extract_root)
+            raised = False
+        except ValueError as exc:
+            raised = True
+            assert "Unsafe zip entry path" in str(exc)
+    assert raised
+
+
+def test_no_avatars_html_report_uses_initials_not_images(tmp_path: Path) -> None:
+    analysis = analyze_takeout(_seed_takeout(tmp_path), now=datetime(2026, 6, 4, tzinfo=UTC), min_videos=1)
+    html_path = tmp_path / "report.html"
+    write_html_report(
+        html_path,
+        analysis,
+        limit=10,
+        recent_months=(3, 6, 12),
+        comparison=None,
+        older_path=None,
+        no_avatars=True,
+    )
+    html_text = html_path.read_text(encoding="utf-8")
+    assert "channel-avatar-fallback" in html_text
+    assert "yt3.googleusercontent.com" not in html_text
+    assert "wsrv.nl" not in html_text
+
+
+def test_analyze_takeout_raises_when_watch_history_missing(tmp_path: Path) -> None:
+    subs_dir = tmp_path / "subscriptions"
+    subs_dir.mkdir(parents=True)
+    (subs_dir / "subscriptions.csv").write_text(
+        "Channel Id,Channel Url,Channel Title\nAAA,https://www.youtube.com/channel/AAA,Channel A\n",
+        encoding="utf-8",
+    )
+
+    try:
+        analyze_takeout(tmp_path, now=datetime(2026, 6, 4, tzinfo=UTC), min_videos=1)
+        raised = False
+    except ValueError as exc:
+        raised = True
+        assert "watch-history" in str(exc)
+    assert raised
+
+
+def test_duplicate_entry_key_uses_video_key_without_timestamp() -> None:
+    entry = {"title": "Untimed video", "titleUrl": "https://www.youtube.com/watch?v=abc12345xyz"}
+    assert duplicate_entry_key(entry, entry_index=7) == "url:https://www.youtube.com/watch?v=abc12345xyz"
+
+
+def test_duplicate_rows_without_timestamp_are_deduped(tmp_path: Path) -> None:
+    history_dir = tmp_path / "history"
+    history_dir.mkdir(parents=True)
+    (history_dir / "watch-history.json").write_text(
+        """
+[
+  {"title": "No time", "titleUrl": "https://www.youtube.com/watch?v=samevid1234", "subtitles": [{"name": "Channel A", "url": "https://www.youtube.com/channel/AAA"}]},
+  {"title": "No time", "titleUrl": "https://www.youtube.com/watch?v=samevid1234", "subtitles": [{"name": "Channel A", "url": "https://www.youtube.com/channel/AAA"}]}
+]
+""".strip(),
+        encoding="utf-8",
+    )
+
+    analysis = analyze_takeout(tmp_path, now=datetime(2026, 6, 4, tzinfo=UTC), min_videos=1)
+    assert analysis.overall_channels[0].watch_count == 1
+    assert analysis.diagnostics.duplicate_watches_skipped == 1
+
+
+def test_subtract_calendar_months_clamps_end_of_month() -> None:
+    value = datetime(2026, 3, 31, 12, 0, tzinfo=UTC)
+    result = subtract_calendar_months(value, 1)
+    assert result.date().isoformat() == "2026-02-28"
+
+
+def test_compare_analyses_reports_watch_gains(tmp_path: Path) -> None:
+    older = analyze_takeout(_seed_takeout(tmp_path / "older"), now=datetime(2026, 6, 4, tzinfo=UTC), min_videos=1)
+
+    current_dir = tmp_path / "current"
+    history_dir = current_dir / "history"
+    history_dir.mkdir(parents=True)
+    (history_dir / "watch-history.json").write_text(
+        """
+[
+  {"title": "A1", "titleUrl": "https://www.youtube.com/watch?v=a1", "time": "2026-04-02T12:00:00Z", "subtitles": [{"name": "Channel A", "url": "https://www.youtube.com/@channel_a"}]},
+  {"title": "A2", "titleUrl": "https://www.youtube.com/watch?v=a2", "time": "2026-05-02T12:00:00Z", "subtitles": [{"name": "Channel A", "url": "https://www.youtube.com/@channel_a"}]},
+  {"title": "A3", "titleUrl": "https://www.youtube.com/watch?v=a3", "time": "2026-05-03T12:00:00Z", "subtitles": [{"name": "Channel A", "url": "https://www.youtube.com/@channel_a"}]},
+  {"title": "N1", "titleUrl": "https://www.youtube.com/watch?v=n1", "time": "2026-05-04T12:00:00Z", "subtitles": [{"name": "Channel New", "url": "https://www.youtube.com/@channel_new"}]}
+]
+""".strip(),
+        encoding="utf-8",
+    )
+
+    current = analyze_takeout(current_dir, now=datetime(2026, 6, 4, tzinfo=UTC), min_videos=1)
+    comparison = compare_analyses(current, older, limit=10)
+    gains = [item for item in comparison if item.watch_change > 0]
+    assert gains[0].channel_name == "Channel A"
+    assert gains[0].watch_change == 1
+
+
+def test_load_config_coerces_numeric_strings_and_no_avatars(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps({"limit": "12", "min_videos": "2", "stale_months": "6", "no_avatars": True}),
+        encoding="utf-8",
+    )
+    config = load_config(config_path)
+    assert config.limit == 12
+    assert config.min_videos == 2
+    assert config.stale_months == 6
+    assert config.no_avatars is True
+
+
+def test_load_config_invalid_json_exits(tmp_path: Path, capsys) -> None:
+    config_path = tmp_path / "config.json"
+    config_path.write_text("{not json", encoding="utf-8")
+    try:
+        load_config(config_path, explicit=True)
+        raised = False
+    except SystemExit as exc:
+        raised = True
+        assert "Invalid JSON" in str(exc)
+    assert raised
+
+
+def test_subscriptions_json_array_is_parsed(tmp_path: Path) -> None:
+    youtube_dir = tmp_path / "Takeout"
+    history_dir = youtube_dir / "history"
+    subs_dir = youtube_dir / "subscriptions"
+    history_dir.mkdir(parents=True)
+    subs_dir.mkdir(parents=True)
+
+    (history_dir / "watch-history.json").write_text(
+        """
+[
+  {
+    "title": "Watched Video 1",
+    "titleUrl": "https://www.youtube.com/watch?v=abc123",
+    "time": "2026-04-02T12:00:00Z",
+    "subtitles": [{"name": "Channel A", "url": "https://www.youtube.com/channel/AAA"}]
+  }
+]
+""".strip(),
+        encoding="utf-8",
+    )
+    (subs_dir / "subscriptions.json").write_text(
+        json.dumps(
+            [
+                {
+                    "snippet": {
+                        "title": "Channel A",
+                        "resourceId": {"channelId": "AAA"},
+                    }
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    analysis = analyze_takeout(youtube_dir, now=datetime(2026, 6, 4, tzinfo=UTC), min_videos=1)
+    assert analysis.unsubscribed_channels == []
+
+
+def test_nested_content_cell_html_is_parsed() -> None:
+    parsed = parse_watch_history_html(
+        """
+<div class="content-cell mdl-cell mdl-cell--6-col mdl-typography--body-1">
+  <div class="inner">
+    Watched <a href="https://www.youtube.com/watch?v=nested1234">Nested Video</a><br>
+    <a href="https://www.youtube.com/channel/NEST">Nested Channel</a><br>
+    2 Jun 2026, 12:30:00 UTC<br>
+  </div>
+</div>
+""".strip()
+    )
+    assert len(parsed) == 1
+    assert parsed[0]["subtitles"][0]["name"] == "Nested Channel"
+
+
+def test_format_table_custom_empty_message() -> None:
+    assert format_table([], empty_message="Nothing here.") == "Nothing here."
+
+
+def test_main_errors_on_missing_takeout_path(tmp_path: Path, monkeypatch) -> None:
+    missing = tmp_path / "missing-takeout"
+    monkeypatch.setattr(
+        "sys.argv",
+        ["subsleuth", str(missing), "--config", str(tmp_path / "noconfig.json")],
+    )
+    try:
+        main()
+        code = 0
+    except SystemExit as exc:
+        code = exc.code
+    assert code != 0
 
 
 def _seed_takeout(tmp_path: Path) -> Path:

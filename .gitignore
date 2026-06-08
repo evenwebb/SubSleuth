@@ -16,7 +16,7 @@ Thumbs.db
 .env
 .env.*
 
-# User data — keep folders, ignore contents
+# User data: keep folders, ignore contents
 input/*
 !input/.gitkeep
 output/*
@@ -26,6 +26,9 @@ output/*
 work/
 outputs/
 
-# Takeout archives dropped in project root
+# Takeout archives dropped in project root or pages folder
 *.zip
 *.tar.gz
+subsleuth-pages/Takeout/
+subsleuth-pages/**/watch-history.*
+subsleuth-pages/**/subscriptions.*

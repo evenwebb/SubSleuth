@@ -8,9 +8,9 @@ It is designed for the "I think YouTube unsubscribed me and I forgot about that 
 
 | | **Browser app** (default) | **Python CLI** (power user) |
 |---|---------------------------|-----------------------------|
-| Best for | Most people — guided wizard, live filters, sorting, demo | Scripts, automation, batch output to disk |
+| Best for | Most people: guided wizard, live filters, sorting, demo | Scripts, automation, batch output to disk |
 | Compare two exports | Not yet | `--compare-to` |
-| Output | Download CSV/HTML from the page | Writes to `output/` automatically |
+| Output | Download ZIP (CSVs) or HTML from the page | Writes CSV + HTML to `output/` automatically |
 | Privacy | Takeout stays local; avatars use CDNs | Fully offline possible (no avatar fetch for CSV) |
 
 **Use the browser app** unless you need comparison mode, cron jobs, or piping results into other tools.
@@ -35,7 +35,7 @@ See [`subsleuth-pages/README.md`](subsleuth-pages/README.md) for hosting, privac
 ## GitHub Actions
 
 - `.github/workflows/tests.yml` runs the Python test suite on pushes and pull requests.
-- `.github/workflows/deploy-pages.yml` publishes `subsleuth-pages/` to GitHub Pages on pushes to `main`.
+- `.github/workflows/deploy-pages.yml` publishes `subsleuth-pages/` to GitHub Pages when `subsleuth-pages/**` changes on `main`, after running the same pytest suite.
 
 ## Recommended repo polish
 
@@ -66,7 +66,7 @@ subsleuth/
 ├── config.json
 ├── input/
 ├── output/
-├── subsleuth-pages/     # browser app (GitHub Pages)
+├── subsleuth-pages/     # browser app (index.html, subsleuth.css, subsleuth.js)
 ├── subsleuth.py         # CLI
 ├── pyproject.toml
 └── tests/
@@ -169,16 +169,25 @@ SubSleuth searches recursively for:
 
 ## Notes
 
-- Do not commit your Takeout zip or exports — `input/` and `output/` contents are gitignored by default.
+- Do not commit your Takeout zip or exports. `input/` and `output/` contents are gitignored by default.
 - Matching works best when channel IDs, handles, or URLs are present.
 - Legacy `/user/` links and newer `@handle` links are normalized together when possible.
 - Deleted videos, renamed channels, and incomplete exports can still reduce accuracy.
 - Ranking is based on watched video count and behavior patterns, not direct watch time.
 
+## Troubleshooting
+
+- **Browser: zip has no Takeout files** – Confirm the archive includes `watch-history` and `subscriptions` exports from Google Takeout.
+- **Browser: every channel looks unsubscribed** – The subscriptions file is probably missing from the upload.
+- **CLI: duplicate watch counts** – If both JSON and HTML watch history exist, SubSleuth now prefers JSON only.
+- **CLI: zip extraction error** – Path traversal entries in a zip are rejected for safety; re-download Takeout from Google.
+- **Matching misses a channel** – Renamed channels, deleted videos, or exports without channel IDs/URLs reduce accuracy.
+
 ## Development
 
 ```bash
 python3 -m pytest -q
+node --check subsleuth-pages/subsleuth.js
 ```
 
 For a local Pages preview:
