@@ -91,7 +91,6 @@
     const recentWindowSelect = document.getElementById("recentWindowSelect");
     const staleMonthsSelect = document.getElementById("staleMonthsSelect");
     const inactiveMonthsSelect = document.getElementById("inactiveMonthsSelect");
-    const searchInput = document.getElementById("searchInput");
     const localOnlyAvatarsInput = document.getElementById("localOnlyAvatarsInput");
     const statsGrid = document.getElementById("statsGrid");
     const highlightGrid = document.getElementById("highlightGrid");
@@ -202,7 +201,7 @@
     });
 
     minVideosInput.addEventListener("input", () => onSettingsChanged());
-    [limitInput, recentWindowSelect, staleMonthsSelect, searchInput].forEach((element) => {
+    [limitInput, recentWindowSelect, staleMonthsSelect].forEach((element) => {
       if (element) element.addEventListener("input", () => onSettingsChanged());
     });
     if (inactiveMonthsSelect) {
@@ -2155,10 +2154,6 @@
       return Math.max(0, Number(staleMonthsSelect?.value) || 0);
     }
 
-    function getSearchTerm() {
-      return searchInput.value.trim().toLowerCase();
-    }
-
     function rerenderResults() {
       if (state.currentStep !== "results") return;
       if (!state.analysis) {
@@ -2169,14 +2164,9 @@
       const now = analysisReferenceDate();
       const limit = getLimit();
       const recentCutoff = subtractCalendarMonths(now, getRecentMonths());
-      const term = getSearchTerm();
       const staleMonths = getStaleMonths();
       const staleCutoff = staleMonths > 0 ? subtractCalendarMonths(now, staleMonths) : null;
       const minVideos = getMinVideos();
-      const matchesSearch = (channel) => {
-        if (!term) return true;
-        return [channel.channelName, channel.explanation, channel.channelUrl || ""].join(" ").toLowerCase().includes(term);
-      };
       const matchesVisibility = (channel) => {
         const hidden = isChannelHidden(channel);
         return !hidden || state.showHidden;
@@ -2184,18 +2174,13 @@
       const applyUnsubscribedFilters = (channels) => channels.filter((channel) => {
         if (channel.watchCount < minVideos) return false;
         if (staleCutoff && (!channel.lastWatched || channel.lastWatched < staleCutoff)) return false;
-        if (!matchesVisibility(channel)) return false;
-        return matchesSearch(channel);
+        return matchesVisibility(channel);
       });
       const applyOverallFilters = (channels) => channels.filter((channel) => {
         if (channel.watchCount < minVideos) return false;
-        if (!matchesVisibility(channel)) return false;
-        return matchesSearch(channel);
+        return matchesVisibility(channel);
       });
-      const applyInactiveFilters = (channels) => channels.filter((channel) => {
-        if (!matchesVisibility(channel)) return false;
-        return matchesSearch(channel);
-      });
+      const applyInactiveFilters = (channels) => channels.filter((channel) => matchesVisibility(channel));
 
       const overall = applyOverallFilters(state.analysis.overallChannels).slice(0, limit);
       const unsubscribed = applyUnsubscribedFilters(state.analysis.unsubscribedChannels).slice(0, limit);
@@ -2572,7 +2557,6 @@
         if (settings.inactiveMonths != null && inactiveMonthsSelect) {
           inactiveMonthsSelect.value = String(settings.inactiveMonths);
         }
-        if (settings.search) searchInput.value = settings.search;
         if (localOnlyAvatarsInput) {
           localOnlyAvatarsInput.checked = Boolean(settings.localOnlyAvatars);
         }
@@ -2590,7 +2574,6 @@
         recentMonths: recentWindowSelect.value,
         staleMonths: staleMonthsSelect?.value || "0",
         inactiveMonths: inactiveMonthsSelect?.value || "6",
-        search: searchInput.value,
         localOnlyAvatars: Boolean(localOnlyAvatarsInput?.checked)
       }));
     }
@@ -3208,26 +3191,19 @@
       const recentMonths = getRecentMonths();
       const staleMonths = getStaleMonths();
       const inactiveMonths = getInactiveRecentMonths();
-      const term = getSearchTerm();
       const minVideos = getMinVideos();
       const recentCutoff = subtractCalendarMonths(now, recentMonths);
       const staleCutoff = staleMonths > 0 ? subtractCalendarMonths(now, staleMonths) : null;
       const exportVisible = (channel) => !isChannelHidden(channel);
-      const matchesSearch = (channel) => {
-        if (!term) return true;
-        return [channel.channelName, channel.explanation, channel.channelUrl || ""].join(" ").toLowerCase().includes(term);
-      };
       const notStale = (channel) => !staleCutoff || (channel.lastWatched && channel.lastWatched >= staleCutoff);
       const meetsMinVideos = (channel) => channel.watchCount >= minVideos;
       const unsubscribed = state.analysis.unsubscribedChannels
         .filter(exportVisible)
-        .filter(matchesSearch)
         .filter(meetsMinVideos)
         .filter(notStale)
         .slice(0, limit);
       const overall = state.analysis.overallChannels
         .filter(exportVisible)
-        .filter(matchesSearch)
         .filter(meetsMinVideos)
         .slice(0, limit);
       const recent = unsubscribed
@@ -3235,7 +3211,6 @@
         .slice(0, limit);
       const inactive = (state.analysis.inactiveSubscriptions || [])
         .filter(exportVisible)
-        .filter(matchesSearch)
         .slice(0, limit);
       return { unsubscribed, overall, recent, inactive, recentMonths, staleMonths, inactiveMonths, analysis: state.analysis };
     }

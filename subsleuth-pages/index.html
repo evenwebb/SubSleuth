@@ -297,19 +297,16 @@
             </label>
           </div>
 
-          <details class="settings-details">
-            <summary>Local only: skip channel images</summary>
-            <label class="settings-toggle">
-              <input type="checkbox" id="localOnlyAvatarsInput">
-              <span class="settings-toggle-card">
-                <span class="settings-toggle-head">
-                  <strong>Block avatar network requests</strong>
-                  <span class="settings-toggle-switch" aria-hidden="true"></span>
-                </span>
-                <span class="settings-toggle-detail">Show initials instead of loading logos from banner.yt, wsrv.nl, or i.ytimg.com. Your Takeout data still never leaves this browser.</span>
+          <label class="settings-toggle">
+            <input type="checkbox" id="localOnlyAvatarsInput">
+            <span class="settings-toggle-card">
+              <span class="settings-toggle-head">
+                <strong>Local only: skip channel images</strong>
+                <span class="settings-toggle-switch" aria-hidden="true"></span>
               </span>
-            </label>
-          </details>
+              <span class="settings-toggle-detail">Show initials instead of loading logos from banner.yt, wsrv.nl, or i.ytimg.com. Your Takeout data still never leaves this browser.</span>
+            </span>
+          </label>
 
           <div class="callout callout-info">
             <span id="presetDescription">Balanced: good default for most exports.</span>
@@ -332,11 +329,6 @@
 
             <div class="summary-row" id="statsGrid"></div>
             <div class="highlight-grid" id="highlightGrid"></div>
-
-            <label class="results-filter">
-              Filter results
-              <input id="searchInput" type="search" placeholder="Channel name" autocomplete="off">
-            </label>
 
             <div class="nav-row results-actions">
               <button class="btn-ghost" id="backToSettingsButton" type="button">Back</button>
