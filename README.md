@@ -27,6 +27,7 @@ See [`subsleuth-pages/README.md`](subsleuth-pages/README.md) for hosting, privac
 
 - Push the repo with `main` as the default branch.
 - In **Settings → Pages**, choose **Build and deployment → GitHub Actions**.
+- This setting must be enabled once by a repo admin before the first Pages workflow run will succeed.
 - Keep the static app in `subsleuth-pages/`; the included workflow deploys that folder automatically.
 - Keep `.nojekyll` in `subsleuth-pages/` so GitHub Pages serves the files exactly as-is.
 - Do not commit personal Takeout exports. Archives, `input/`, `output/`, caches, and generated files should stay ignored.

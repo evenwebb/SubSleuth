@@ -16,8 +16,9 @@ This repo is already set up for GitHub Pages deployment with GitHub Actions.
 
 1. Push the repo to GitHub.
 2. In **Settings → Pages**, set **Source** to **GitHub Actions**.
-3. Push to `main`, or run the **Deploy GitHub Pages** workflow manually.
-4. GitHub will publish this folder at `https://<user>.github.io/<repo>/`.
+3. This has to be turned on once by a repo admin before the workflow can deploy successfully.
+4. Push to `main`, or run the **Deploy GitHub Pages** workflow manually.
+5. GitHub will publish this folder at `https://<user>.github.io/<repo>/`.
 
 Required files in this folder:
 
