@@ -1,0 +1,13 @@
+{
+  "limit": 50,
+  "min_videos": 1,
+  "stale_months": 0,
+  "inactive_recent_months": 6,
+  "output_dir": "output",
+  "unsubscribed_csv": "subsleuth-results.csv",
+  "overall_csv": "subsleuth-top-channels.csv",
+  "inactive_csv": "subsleuth-inactive-subs.csv",
+  "comparison_csv": "subsleuth-comparison.csv",
+  "html_report": "subsleuth-report.html",
+  "recent_month_windows": [3, 6, 12]
+}

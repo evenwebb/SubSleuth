@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "subsleuth"
+version = "0.1.0"
+description = "Rank the YouTube channels you watched most but are not currently subscribed to."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "SubSleuth contributors" }]
+license = { file = "LICENSE" }
+dependencies = []
+
+[project.scripts]
+subsleuth = "subsleuth:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

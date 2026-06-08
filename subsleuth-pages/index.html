@@ -1,0 +1,1251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SubSleuth</title>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <style>
+    :root {
+      --bg: #f4f5f7;
+      --surface: #ffffff;
+      --border: #e2e5ea;
+      --ink: #1a1d23;
+      --muted: #5c6370;
+      --accent: #c44d1c;
+      --accent-soft: #fdf0ea;
+      --accent-hover: #a33f16;
+      --success: #0d6e5f;
+      --success-soft: #e8f5f2;
+      --radius: 12px;
+      --shadow: 0 2px 12px rgba(26, 29, 35, 0.08);
+      --gap-section: 14px;
+      --gap-step: 10px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.5;
+    }
+
+    a { color: var(--accent); }
+    h1, h2, h3, p { margin: 0; }
+
+    .page {
+      width: min(1120px, calc(100vw - 40px));
+      margin: 0 auto;
+      padding: 16px 0 40px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 6px 10px;
+      margin-bottom: 10px;
+    }
+
+    .topbar h1 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .topbar-tag {
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.3;
+    }
+
+    .step-menu {
+      margin-bottom: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .step-menu-bar {
+      display: flex;
+      height: 34px;
+      padding: 3px;
+      gap: 2px;
+    }
+
+    .step-menu-item {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 0 6px;
+      border-radius: 5px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--muted);
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .step-num {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 0.62rem;
+      font-weight: 700;
+      background: #eef0f3;
+      color: var(--muted);
+    }
+
+    .step-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .step-menu-item.is-active {
+      background: var(--accent);
+      color: white;
+    }
+
+    .step-menu-item.is-active .step-num {
+      background: rgba(255, 255, 255, 0.25);
+      color: white;
+    }
+
+    .step-menu-item.is-done {
+      color: var(--success);
+    }
+
+    .step-menu-item.is-done .step-num {
+      background: var(--success-soft);
+      color: var(--success);
+    }
+
+    .step-menu-item.is-done,
+    .step-menu-item.is-active {
+      cursor: default;
+    }
+
+    .step-menu-item.is-done.is-clickable {
+      cursor: pointer;
+    }
+
+    .step-menu-item.is-done.is-clickable:hover {
+      background: var(--success-soft);
+    }
+
+    .step-menu-current {
+      margin: 0;
+      padding: 5px 10px 6px;
+      border-top: 1px solid var(--border);
+      background: #fafbfc;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--ink);
+      text-align: center;
+    }
+
+    .step-menu-current span {
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    /* Wizard card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .card-head {
+      padding: 18px 28px 10px;
+    }
+
+    .card-head h2 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .card-head .intro {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .card-body {
+      padding: 4px 28px 28px;
+    }
+
+    .step-panel { display: none; }
+    .step-panel.is-visible {
+      display: grid;
+      gap: var(--gap-section);
+    }
+
+    .step-lead {
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.55;
+      margin: 0;
+    }
+
+    /* Instruction lists */
+    .instructions {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: var(--gap-step);
+    }
+
+    .instructions li {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .instr-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 0.8rem;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+
+    .instr-body strong {
+      display: block;
+      font-size: 0.92rem;
+      margin-bottom: 2px;
+    }
+
+    .instr-body span {
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.55;
+    }
+
+    .instr-body code {
+      font-size: 0.82rem;
+      background: #f0f1f3;
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    /* Callout boxes */
+    .callout {
+      padding: 14px 16px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      line-height: 1.55;
+    }
+
+    .callout-info {
+      background: #eef4ff;
+      border: 1px solid #c5d8f5;
+      color: #2a4a7a;
+    }
+
+    .callout-warn {
+      background: #fff8e6;
+      border: 1px solid #f0d88a;
+      color: #6b5200;
+    }
+
+    .callout-privacy {
+      background: var(--success-soft);
+      border: 1px solid #b8ddd6;
+      color: #0a4f44;
+    }
+
+    .callout strong { display: block; margin-bottom: 3px; }
+
+    .callout-error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+    }
+
+    .diag-list {
+      margin: 6px 0 0;
+      padding-left: 18px;
+      font-size: 0.85rem;
+    }
+
+    .channel-cell {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .channel-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: #eef0f3;
+      border: 1px solid var(--border);
+    }
+
+    .channel-avatar-fallback {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: grid;
+      place-items: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      background: var(--accent-soft);
+      color: var(--accent);
+      border: 1px solid #f0cdb8;
+    }
+
+    .channel-avatar[hidden],
+    .channel-avatar-fallback[hidden] {
+      display: none !important;
+    }
+
+    .channel-meta { min-width: 0; flex: 1; }
+
+    .btn-hide {
+      appearance: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--muted);
+      background: white;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn-hide:hover { background: #f4f5f7; color: var(--ink); }
+
+    .btn-subscribe {
+      appearance: none;
+      border: 0;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: white;
+      background: var(--success);
+      cursor: pointer;
+      text-decoration: none;
+      white-space: nowrap;
+      display: inline-block;
+    }
+
+    .btn-subscribe:hover { filter: brightness(0.92); }
+
+    .row-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    tr.is-hidden-row { opacity: 0.45; }
+
+    .parse-progress {
+      height: 4px;
+      border-radius: 999px;
+      background: #eef0f3;
+      overflow: hidden;
+      display: none;
+    }
+
+    .parse-progress.is-active { display: block; }
+
+    .parse-progress-bar {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      transition: width 0.15s ease;
+    }
+
+    .channel-cards { display: none; gap: 10px; padding: 12px; }
+
+    .channel-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fafbfc;
+      display: grid;
+      gap: 8px;
+    }
+
+    .channel-card.is-hidden-row { opacity: 0.55; }
+
+    .channel-card-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .highlight-card .channel-cell { margin-bottom: 4px; }
+
+    /* Dropzone */
+    .dropzone {
+      position: relative;
+      min-height: 160px;
+      padding: 28px;
+      border-radius: var(--radius);
+      border: 2px dashed var(--border);
+      background: #fafbfc;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .dropzone:hover,
+    .dropzone.dragover {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .dropzone input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .dropzone strong {
+      display: block;
+      font-size: 1rem;
+      margin-bottom: 4px;
+    }
+
+    .dropzone span {
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    /* Form controls */
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    input[type="number"],
+    input[type="search"],
+    select {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font: inherit;
+      color: var(--ink);
+      background: var(--surface);
+    }
+
+    .field-grid {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .choice-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .choice { position: relative; }
+    .choice input { position: absolute; opacity: 0; pointer-events: none; }
+
+    .choice-card {
+      height: 100%;
+      padding: 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .choice-card strong {
+      display: block;
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+    }
+
+    .choice-card span {
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.45;
+    }
+
+    .choice input:checked + .choice-card {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    /* Buttons */
+    .nav-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      padding-top: 2px;
+    }
+
+    .nav-row.results-actions .start-fresh-btn {
+      margin-left: auto;
+    }
+
+    @media (max-width: 640px) {
+      .nav-row.results-actions .start-fresh-btn {
+        margin-left: 0;
+        width: 100%;
+      }
+    }
+
+    button, .btn-link {
+      appearance: none;
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 18px;
+      font: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover { background: var(--accent-hover); }
+
+    .btn-secondary {
+      background: #eef0f3;
+      color: var(--ink);
+    }
+
+    .btn-secondary:hover { background: #e2e5ea; }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .status {
+      min-height: 1.2rem;
+      font-family: ui-monospace, monospace;
+      font-size: 0.8rem;
+      color: var(--muted);
+      white-space: pre-wrap;
+    }
+
+    .upload-file-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .upload-file-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fafbfc;
+    }
+
+    .upload-file-meta {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+    }
+
+    .upload-file-meta strong {
+      font-size: 0.88rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .upload-file-meta span {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .btn-remove-file {
+      appearance: none;
+      border: 1px solid #e8b4b4;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font: inherit;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #9b2c2c;
+      background: #fff5f5;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .btn-remove-file:hover {
+      background: #fde8e8;
+      border-color: #d99;
+    }
+
+    .demo-cta {
+      margin-bottom: 14px;
+    }
+
+    .demo-cta-inner {
+      display: block;
+      width: 100%;
+      padding: 20px 22px;
+      border: 2px solid var(--accent);
+      border-radius: 12px;
+      background: linear-gradient(135deg, #fff5ef 0%, #fde8dc 100%);
+      color: var(--ink);
+      text-align: left;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(196, 77, 28, 0.15);
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+    }
+
+    .demo-cta-inner:hover {
+      border-color: var(--accent-hover);
+      box-shadow: 0 10px 28px rgba(196, 77, 28, 0.22);
+      transform: translateY(-1px);
+    }
+
+    .demo-cta-kicker {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+
+    .demo-cta-title {
+      display: block;
+      font-size: 1.35rem;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 6px;
+    }
+
+    .demo-cta-sub {
+      display: block;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    /* Results */
+    .results-shell { display: none; gap: var(--gap-section); }
+    .results-shell.is-visible { display: grid; }
+
+    .summary-row {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .stat-card {
+      flex: 1 1 0;
+      min-width: 0;
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 5px;
+      padding: 10px 6px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #fafbfc;
+      white-space: nowrap;
+    }
+
+    .stat-card strong {
+      font-size: 1.1rem;
+      line-height: 1.2;
+      flex-shrink: 0;
+    }
+
+    .stat-card span {
+      font-size: 0.68rem;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .results-lead {
+      padding: 16px;
+      border-radius: 8px;
+      background: var(--accent-soft);
+      border: 1px solid #f0cdb8;
+    }
+
+    .results-lead h3 {
+      font-size: 1.1rem;
+      margin-bottom: 6px;
+    }
+
+    .results-lead p {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .highlight-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .highlight-card {
+      padding: 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      display: grid;
+      gap: 6px;
+      position: relative;
+    }
+
+    .highlight-rank {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--ink);
+      color: white;
+      font-size: 0.75rem;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+    }
+
+    .highlight-card strong { font-size: 0.92rem; padding-right: 28px; }
+    .highlight-card span { color: var(--muted); font-size: 0.82rem; }
+
+    .mini-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .mini-tag {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--success-soft);
+      color: var(--success);
+    }
+
+    .table-section {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .table-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: #fafbfc;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .table-head h3 { font-size: 0.95rem; }
+    .table-head p { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+
+    .table-tag {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #eef0f3;
+      color: var(--muted);
+    }
+
+    .table-wrap { overflow: auto; }
+
+    table {
+      width: 100%;
+      min-width: 780px;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+      vertical-align: top;
+    }
+
+    th.date-cell,
+    td.date-cell {
+      white-space: nowrap;
+      width: 1%;
+      font-variant-numeric: tabular-nums;
+    }
+
+    th {
+      background: #fafbfc;
+      color: var(--muted);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      position: sticky;
+      top: 0;
+    }
+
+    th.sortable {
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    th.sortable:hover {
+      color: var(--ink);
+      background: #f0f2f5;
+    }
+
+    .sort-indicator {
+      margin-left: 4px;
+      font-size: 0.65rem;
+      opacity: 0.35;
+    }
+
+    th.sortable[aria-sort="ascending"] .sort-indicator,
+    th.sortable[aria-sort="descending"] .sort-indicator {
+      opacity: 1;
+      color: var(--accent);
+    }
+
+    td small {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .empty {
+      padding: 24px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .file-checklist {
+      display: grid;
+      gap: 6px;
+    }
+
+    .file-check {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      font-size: 0.88rem;
+    }
+
+    .file-check .icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #eef0f3;
+      display: grid;
+      place-items: center;
+      font-size: 0.7rem;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 760px) {
+      .table-wrap table { display: none; }
+      .table-wrap .channel-cards { display: grid; }
+    }
+
+    @media (max-width: 640px) {
+      .page { width: calc(100vw - 20px); padding: 12px 0 32px; }
+      .topbar-tag { width: 100%; }
+      .step-name { display: none; }
+      .step-menu-item.is-active .step-name { display: inline; }
+      .step-menu-bar { height: 30px; }
+      .field-grid, .choice-grid, .highlight-grid { grid-template-columns: 1fr; }
+      .summary-row { gap: 4px; }
+      .stat-card { padding: 8px 4px; gap: 3px; }
+      .stat-card strong { font-size: 0.95rem; }
+      .stat-card span { font-size: 0.6rem; }
+      .card-head, .card-body { padding-left: 18px; padding-right: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <h1>SubSleuth</h1>
+      <span class="topbar-tag">Find channels you watch but never subscribed to.</span>
+    </header>
+
+    <nav class="step-menu" aria-label="Wizard steps">
+      <div class="step-menu-bar">
+        <div class="step-menu-item is-active" id="progressWelcome" data-step="welcome" role="button" tabindex="0">
+          <span class="step-num">1</span>
+          <span class="step-name">Welcome</span>
+        </div>
+        <div class="step-menu-item" id="progressExport" data-step="export" role="button" tabindex="0">
+          <span class="step-num">2</span>
+          <span class="step-name">Export</span>
+        </div>
+        <div class="step-menu-item" id="progressUpload" data-step="upload" role="button" tabindex="0">
+          <span class="step-num">3</span>
+          <span class="step-name">Upload</span>
+        </div>
+        <div class="step-menu-item" id="progressTune" data-step="tune" role="button" tabindex="0">
+          <span class="step-num">4</span>
+          <span class="step-name">Settings</span>
+        </div>
+        <div class="step-menu-item" id="progressResults" data-step="results" role="button" tabindex="0">
+          <span class="step-num">5</span>
+          <span class="step-name">Results</span>
+        </div>
+      </div>
+      <p class="step-menu-current" id="stepStatus" aria-live="polite">Step 1 of 5 <span>— Welcome</span></p>
+    </nav>
+
+    <div class="demo-cta" id="demoCta" hidden>
+      <button type="button" class="demo-cta-inner" id="demoCtaButton">
+        <span class="demo-cta-kicker">Sample data</span>
+        <span class="demo-cta-title">Try SubSleuth with your own YouTube export</span>
+        <span class="demo-cta-sub">Private · runs in your browser · takes about 5 minutes</span>
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2 id="wizardTitle">Welcome</h2>
+        <p class="intro" id="wizardIntro">Four steps. Everything stays in your browser.</p>
+      </div>
+
+      <div class="card-body">
+        <!-- Step 1: Welcome -->
+        <section class="step-panel is-visible" id="panelWelcome">
+          <div class="callout callout-privacy">
+            <strong>Private by design</strong>
+            Your Takeout export is read locally in this tab — watch history and subscriptions are not uploaded anywhere.
+            Channel logos are fetched separately from image CDNs using only the channel ID or handle.
+          </div>
+
+          <p class="step-lead">SubSleuth matches your watch history to your subscriptions and lists channels you still watch but aren't subscribed to.</p>
+
+          <ol class="instructions">
+            <li>
+              <span class="instr-num">1</span>
+              <div class="instr-body">
+                <strong>Export from Google Takeout</strong>
+                <span>Step-by-step guide on the next screen.</span>
+              </div>
+            </li>
+            <li>
+              <span class="instr-num">2</span>
+              <div class="instr-body">
+                <strong>Upload your zip</strong>
+                <span>Or upload the raw files if you prefer.</span>
+              </div>
+            </li>
+            <li>
+              <span class="instr-num">3</span>
+              <div class="instr-body">
+                <strong>Run the check</strong>
+                <span>Pick a preset, then see your list.</span>
+              </div>
+            </li>
+          </ol>
+
+          <div class="callout callout-info">
+            <strong>Browser vs CLI</strong>
+            This web app is the default way to use SubSleuth — wizard, sorting, filters, and exports with no install.
+            The Python CLI in the repo is for power users: batch CSV/HTML to disk, <code>--compare-to</code> for older exports, and automation.
+          </div>
+
+          <div class="nav-row">
+            <button class="btn-primary" id="startWizardButton">Start</button>
+            <button class="btn-ghost" id="demoButton">Try demo data</button>
+          </div>
+        </section>
+
+        <!-- Step 2: Export instructions -->
+        <section class="step-panel" id="panelExport">
+          <div class="callout callout-info">
+            <strong>What you need from Google Takeout</strong>
+            A zip containing your YouTube watch history and subscriptions. Both are required for the best results.
+          </div>
+
+          <ol class="instructions">
+            <li>
+              <span class="instr-num">1</span>
+              <div class="instr-body">
+                <strong>Open Google Takeout</strong>
+                <span>Go to <a href="https://takeout.google.com/" target="_blank" rel="noreferrer">takeout.google.com</a> and sign in with the Google account linked to your YouTube.</span>
+              </div>
+            </li>
+            <li>
+              <span class="instr-num">2</span>
+              <div class="instr-body">
+                <strong>Deselect all, then select only YouTube and YouTube Music</strong>
+                <span>Click "Deselect all", then check <strong>YouTube and YouTube Music</strong>. Other products are not needed.</span>
+              </div>
+            </li>
+            <li>
+              <span class="instr-num">3</span>
+              <div class="instr-body">
+                <strong>Choose the right formats</strong>
+                <span>Under YouTube, make sure <code>history</code> is set to JSON or HTML, and <code>subscriptions</code> is set to CSV. Defaults usually work.</span>
+              </div>
+            </li>
+            <li>
+              <span class="instr-num">4</span>
+              <div class="instr-body">
+                <strong>Create export and wait for the download link</strong>
+                <span>Click "Next step", choose delivery method (download link is fine), then "Create export". Google emails you when the zip is ready — this can take minutes to hours.</span>
+              </div>
+            </li>
+            <li>
+              <span class="instr-num">5</span>
+              <div class="instr-body">
+                <strong>Download the zip to your computer</strong>
+                <span>Save the file locally. You'll upload it in the next step — do not unzip it first.</span>
+              </div>
+            </li>
+          </ol>
+
+          <div class="file-checklist">
+            <div class="file-check"><span class="icon">✓</span> <code>watch-history.json</code> or <code>watch-history.html</code></div>
+            <div class="file-check"><span class="icon">✓</span> <code>subscriptions.csv</code> or <code>subscriptions.json</code></div>
+          </div>
+
+          <div class="callout callout-warn">
+            <strong>No subscriptions file?</strong>
+            You can still rank watched channels, but SubSleuth won't be able to confirm who you're already subscribed to.
+          </div>
+
+          <div class="nav-row">
+            <button class="btn-ghost" id="backToWelcomeButton">Back</button>
+            <button class="btn-primary" id="toUploadButton">Continue to upload</button>
+          </div>
+        </section>
+
+        <!-- Step 3: Upload -->
+        <section class="step-panel" id="panelUpload">
+          <p class="step-lead">Drop your Takeout <strong>.zip</strong> (recommended) — or select the watch history and subscriptions files together. Large files may take a few seconds.</p>
+
+          <div class="dropzone" id="dropzone">
+            <input id="fileInput" type="file" accept=".zip,.json,.csv,.html" multiple>
+            <div>
+              <strong>Drop here or click to browse</strong>
+              <span>.zip · .json · .csv · .html</span>
+            </div>
+          </div>
+
+          <div class="status" id="status">No file selected yet.</div>
+          <div class="upload-file-list" id="uploadFileList" hidden></div>
+          <div class="parse-progress" id="parseProgress"><div class="parse-progress-bar" id="parseProgressBar"></div></div>
+          <div id="uploadDiagnostics"></div>
+          <div id="cacheWarning"></div>
+
+          <div class="nav-row">
+            <button class="btn-ghost" id="backToExportButton">Back</button>
+            <button class="btn-primary" id="toSettingsButton">Next</button>
+          </div>
+        </section>
+
+        <!-- Step 4: Settings -->
+        <section class="step-panel" id="panelTune">
+          <p class="step-lead">Choose how picky the list should be. Most changes apply instantly; min videos and presets re-score your import automatically.</p>
+
+          <div class="choice-grid">
+            <label class="choice">
+              <input type="radio" name="preset" value="focused" checked>
+              <span class="choice-card">
+                <strong>Focused</strong>
+                <span>Fewer, stronger matches.</span>
+              </span>
+            </label>
+            <label class="choice">
+              <input type="radio" name="preset" value="balanced">
+              <span class="choice-card">
+                <strong>Balanced</strong>
+                <span>Default — good for most people.</span>
+              </span>
+            </label>
+            <label class="choice">
+              <input type="radio" name="preset" value="explore">
+              <span class="choice-card">
+                <strong>Explore</strong>
+                <span>More channels, wider net.</span>
+              </span>
+            </label>
+          </div>
+
+          <div class="field-grid">
+            <label>
+              Min. videos watched
+              <input id="minVideosInput" type="number" min="1" step="1" value="3">
+            </label>
+            <label>
+              Max rows
+              <input id="limitInput" type="number" min="1" step="1" value="18">
+            </label>
+            <label>
+              Recent activity
+              <select id="recentWindowSelect">
+                <option value="3">Last 3 months</option>
+                <option value="6" selected>Last 6 months</option>
+                <option value="12">Last 12 months</option>
+              </select>
+            </label>
+            <label>
+              Hide stale (months)
+              <select id="staleMonthsSelect">
+                <option value="0" selected>Off</option>
+                <option value="6">6+ months ago</option>
+                <option value="12">12+ months ago</option>
+                <option value="24">24+ months ago</option>
+              </select>
+            </label>
+            <label>
+              Filter results
+              <input id="searchInput" type="search" placeholder="Channel name">
+            </label>
+          </div>
+
+          <div class="callout callout-info">
+            <span id="presetDescription">Focused: stricter cut-off, shorter list.</span>
+          </div>
+
+          <div class="nav-row">
+            <button class="btn-ghost" id="backToUploadButton">Back</button>
+            <button class="btn-primary" id="runAnalysisButton">Run</button>
+          </div>
+        </section>
+
+        <!-- Step 5: Results -->
+        <section class="step-panel" id="panelResults">
+          <div class="results-shell" id="resultsShell">
+            <div class="results-lead">
+              <h3 id="resultsHeadline">Results go here</h3>
+              <p id="resultsNarrative">Upload your export and run the check first.</p>
+            </div>
+            <div id="resultsCacheWarning"></div>
+
+            <div class="summary-row" id="statsGrid"></div>
+            <div class="highlight-grid" id="highlightGrid"></div>
+
+            <div class="nav-row results-actions">
+              <button class="btn-ghost" id="backToSettingsButton">Back</button>
+              <a class="btn-link btn-secondary" id="downloadCsvButton" download="subsleuth-results.csv" href="#">Download CSV</a>
+              <button class="btn-secondary" id="downloadHtmlButton" type="button">Download HTML report</button>
+              <button class="btn-ghost" id="showHiddenButton" type="button" hidden>Show hidden (0)</button>
+              <button class="btn-ghost start-fresh-btn" id="startFreshButton" type="button">Start fresh</button>
+            </div>
+
+            <div class="table-section">
+              <div class="table-head">
+                <div>
+                  <h3>Not subscribed</h3>
+                  <p>You watch these, but they're not on your subscription list.</p>
+                </div>
+                <span class="table-tag" id="unsubscribedTag">0 channels</span>
+              </div>
+              <div class="table-wrap" id="unsubscribedTable"></div>
+            </div>
+
+            <div class="table-section">
+              <div class="table-head">
+                <div>
+                  <h3>Watched recently</h3>
+                  <p>From your list above, within the time window you picked.</p>
+                </div>
+                <span class="table-tag" id="recentTag">0 recent</span>
+              </div>
+              <div class="table-wrap" id="recentTable"></div>
+            </div>
+
+            <div class="table-section">
+              <div class="table-head">
+                <div>
+                  <h3>Inactive subscriptions</h3>
+                  <p>Still subscribed, but no watches in the last 6 months.</p>
+                </div>
+                <span class="table-tag" id="inactiveTag">0 inactive</span>
+              </div>
+              <div class="table-wrap" id="inactiveTable"></div>
+            </div>
+
+            <div class="table-section">
+              <div class="table-head">
+                <div>
+                  <h3>All channels</h3>
+                  <p>Every channel ranked by watch activity.</p>
+                </div>
+                <span class="table-tag" id="overallTag">0 ranked</span>
+              </div>
+              <div class="table-wrap" id="overallTable"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <p class="footer">Runs in your browser · No account · Your takeout never leaves your device</p>
+  </div>
+
+  <script src="subsleuth.js"></script>
+</body>
+</html>

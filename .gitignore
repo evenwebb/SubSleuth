@@ -1,0 +1,31 @@
+# Python
+.pytest_cache/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.coverage
+.venv/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local env / secrets
+.env
+.env.*
+
+# User data — keep folders, ignore contents
+input/*
+!input/.gitkeep
+output/*
+!output/.gitkeep
+
+# Stray / legacy workspace dirs
+work/
+outputs/
+
+# Takeout archives dropped in project root
+*.zip
+*.tar.gz
