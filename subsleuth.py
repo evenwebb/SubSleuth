@@ -11,7 +11,9 @@ import sys
 import tempfile
 import zipfile
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+UTC = timezone.utc
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
@@ -1328,6 +1330,9 @@ def write_html_report(
     if diag.memory_warning:
         import_notes.append(diag.memory_warning)
     import_notes_html = "".join(f"<li>{html.escape(note)}</li>" for note in import_notes)
+    import_notes_block = (
+        f'<ul class="hint">{import_notes_html}</ul>' if import_notes_html else ""
+    )
     html_text = f"""<!doctype html>
 <html lang="en">
 <head>
@@ -1456,7 +1461,7 @@ def write_html_report(
         <div class="stat"><strong>{len(analysis.inactive_subscriptions)}</strong><br>inactive subscriptions</div>
         <div class="stat"><strong>{len(analysis.overall_channels)}</strong><br>top watched channels</div>
       </div>
-      {"<ul class=\"hint\">" + import_notes_html + "</ul>" if import_notes_html else ""}
+      {import_notes_block}
     </section>
     <div class="grid">
       <section class="card">
